@@ -20,7 +20,7 @@ def parse_cli() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('globs', nargs='+', type=str, help='modules and packages to edit')
     parser.add_argument('--python-version', '-v', type=str, help='the python version to consider', default=DEFAULT_PYVER)
-    parser.add_argument('--ignore', '-i', nargs='+', type=str, help="files matching this regex won't be collected")
+    parser.add_argument('--ignore', '-i', nargs='+', type=str, help="files matching this regex or starting with any of these strings won't be collected")
     parser.add_argument('--collect-only', action='store_true', help='just collect files, do not run the checks')
     mutex = parser.add_mutually_exclusive_group(required=False)
     mutex.add_argument('--all-deps', '-a', action='store_true', help='include stdlib dependencies')
@@ -63,26 +63,31 @@ def is_stdlib(package_name: list[str], stdlib_modules: set[str]) -> bool:
     return True
 
 
-def get_files_from_glob(globname: str) -> list[str]:
+def get_files_from_glob(globname: str, ignoreds: list[str]) -> list[str]:
+
+    def file_is_ok(fname: str) -> bool:
+        fname = fname[2:] if fname.startswith('./') else fname
+        return fname.endswith('.py') and not any(fname.startswith(i) or re.fullmatch(i, fname) for i in ignoreds)
+
     def get_files_from_dir(dirname: str) -> list[str]:
         with os.scandir(dirname) as it:
             for entry in it:
-                if entry.is_file():
+                if entry.is_file() and file_is_ok(entry.path):
                     yield entry.path
                 elif entry.is_dir():
-                    yield from get_files_from_dir(entry.name)
+                    yield from get_files_from_dir(entry.path)
 
     for file in glob.glob(globname):
-        if os.path.isfile(file) and file.endswith('.py'):
+        if os.path.isfile(file) and file_is_ok(file):
             yield file
         if os.path.isdir(file):
             yield from get_files_from_dir(file)
 
 
-def get_imports_per_glob(globs: list[str], keep_subpackages: bool) -> dict[tuple[str], list[str]]:
+def get_imports_per_glob(globs: list[str], keep_subpackages: bool, ignoreds: list[str]) -> dict[tuple[str], list[str]]:
     out = {}
     for globname in globs:
-        files = tuple(get_files_from_glob(globname))
+        files = tuple(get_files_from_glob(globname, ignoreds))
         for dep in get_imports_from(files):
             out.setdefault(dep, []).append(globname)
     if keep_subpackages:  # just ensure unicity of all globs
@@ -110,8 +115,7 @@ def main():
         all_py_files = tuple(
             file
             for globname in args.globs
-            for file in glob.glob(globname)
-            if file.endswith('.py')
+            for file in get_files_from_glob(globname, args.ignore)
         )
         print(f'Collected {len(all_py_files)} files:')
         for f in all_py_files:
@@ -121,7 +125,7 @@ def main():
     stdlib_modules = stdlib_module_names(target_pyver)
     results = (
         (dep, globs, is_stdlib(dep, stdlib_modules))
-        for dep, globs in sorted(get_imports_per_glob(args.globs, args.keep_subpackages).items())
+        for dep, globs in sorted(get_imports_per_glob(args.globs, args.keep_subpackages, args.ignore).items())
     )
     results = (
         (dep, globs, isstd)
