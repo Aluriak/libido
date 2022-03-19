@@ -29,6 +29,7 @@ def parse_cli() -> argparse.Namespace:
     parser.add_argument('--max-show', '-m', type=int, help='when showing globs per dependencies, show at most N globs to avoid flooding output (zero means no limit)', default=0)
     parser.add_argument('--porcelain', '-p', action='store_true', help='parsable output')
     parser.add_argument('--keep-subpackages', '-k', action='store_true', help='keep subpackages in the dependency list')
+    parser.add_argument('--raise-parsing-errors', '-r', action='store_true', help='on file parsing errors, raise exceptions.')
     return parser.parse_args()
 
 
@@ -37,6 +38,7 @@ def get_imports_from_fd(fd: open) -> list[tuple[str]]:
     statements = red.find_all('import')
     for s in statements:
         for module in s.modules():
+            if module.startswith('.'): raise SyntaxError(f"Statement `{s}` is not a valid import.")
             yield tuple(module.split('.'))
     statements = red.find_all('from_import')
     for s in statements:
@@ -47,14 +49,17 @@ def get_imports_from_fd(fd: open) -> list[tuple[str]]:
             assert '.' not in module, "that is unexpected. Dots are not allowed in from clause of from_import expression, right ?"
             yield module_base + (module,)
 
-def get_imports_from(fnames: list[str]) -> list[tuple[str]]:
+def get_imports_from(fnames: list[str], raise_err: bool = False) -> list[tuple[str]]:
     for fname in fnames:
         try:
             with open(fname) as fd:
                 yield from get_imports_from_fd(fd)
         except Exception as err:
             print(f"File {fname} couldn't be parsed by RedBaron, because of a {type(err).__name__}. This file will be not be collected.")
-            print(err)
+            if raise_err:
+                raise err
+            else:
+                print(err)
             continue
 
 
@@ -92,11 +97,11 @@ def get_files_from_glob(globname: str, ignoreds: list[str]) -> list[str]:
             yield from get_files_from_dir(file)
 
 
-def get_imports_per_glob(globs: list[str], keep_subpackages: bool, ignoreds: list[str]) -> dict[tuple[str], list[str]]:
+def get_imports_per_glob(globs: list[str], keep_subpackages: bool, ignoreds: list[str], raise_err: bool) -> dict[tuple[str], list[str]]:
     out = {}
     for globname in globs:
         files = tuple(get_files_from_glob(globname, ignoreds))
-        for dep in get_imports_from(files):
+        for dep in get_imports_from(files, raise_err):
             out.setdefault(dep, []).append(globname)
     if keep_subpackages:  # just ensure unicity of all globs
         out = {dep: sorted(list(set(globs))) for dep, globs in out.items()}
@@ -133,7 +138,7 @@ def main():
     stdlib_modules = stdlib_module_names(target_pyver)
     results = (
         (dep, globs, is_stdlib(dep, stdlib_modules))
-        for dep, globs in sorted(get_imports_per_glob(args.globs, args.keep_subpackages, args.ignore).items())
+        for dep, globs in sorted(get_imports_per_glob(args.globs, args.keep_subpackages, args.ignore, args.raise_parsing_errors).items())
     )
     results = (
         (dep, globs, isstd)
