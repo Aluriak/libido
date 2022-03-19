@@ -3,17 +3,14 @@
 
 __version__ = '0.0.4.dev0'
 
+import os
 import re
 import sys
-import json
 import glob
 import argparse
-import os.path
 
-import stdlibs
-from redbaron import RedBaron, RedBaron as RB
+from redbaron import RedBaron
 from stdlibs import stdlib_module_names, KNOWN_VERSIONS
-from os.path import exists
 
 # [v for v in KNOWN_VERSIONS if "dataclasses" in ]
 DEFAULT_PYVER = f'{sys.version_info.major}.{sys.version_info.minor}'
@@ -36,7 +33,6 @@ def parse_cli() -> argparse.Namespace:
 
 
 def get_imports_from(fnames: [str]) -> list[tuple[str]]:
-    import json
     for fname in fnames:
         with open(fname) as fd:
             red = RedBaron(fd.read())
@@ -46,15 +42,6 @@ def get_imports_from(fnames: [str]) -> list[tuple[str]]:
                     yield tuple(module.split('.'))
             statements = red.find_all('from_import')
             for s in statements:
-                # print(dir(s))
-                # print(json.dumps(s.fst(), indent=4))
-                # print('NAMES:', s.names())
-                # print('NAME:', s.name)
-                # print('MODULES:', s.modules())
-                # print('TARGETS:', s.targets)
-                # for sub in s:
-                    # print(sub, type(sub), sub.value, type(sub.value))
-                # print('###')
                 module_base = tuple(sub.value for sub in s)
                 assert all(isinstance(m, str) for m in module_base), tuple(map(type, module_base))
                 for module in s.modules():
@@ -76,10 +63,26 @@ def is_stdlib(package_name: list[str], stdlib_modules: set[str]) -> bool:
     return True
 
 
+def get_files_from_glob(globname: str) -> list[str]:
+    def get_files_from_dir(dirname: str) -> list[str]:
+        with os.scandir(dirname) as it:
+            for entry in it:
+                if entry.is_file():
+                    yield entry.path
+                elif entry.is_dir():
+                    yield from get_files_from_dir(entry.name)
+
+    for file in glob.glob(globname):
+        if os.path.isfile(file) and file.endswith('.py'):
+            yield file
+        if os.path.isdir(file):
+            yield from get_files_from_dir(file)
+
+
 def get_imports_per_glob(globs: list[str], keep_subpackages: bool) -> dict[tuple[str], list[str]]:
     out = {}
     for globname in globs:
-        files = (file for file in glob.glob(globname) if file.endswith('.py'))
+        files = tuple(get_files_from_glob(globname))
         for dep in get_imports_from(files):
             out.setdefault(dep, []).append(globname)
     if not keep_subpackages:  # e.g. remove os.path if we have os
