@@ -10,6 +10,8 @@ But, if you have a set of python files and want to know what they are importing,
     pip install libido
     libido mod.py pak/*.py pak2/
 
+See [Makefile](Makefile) for examples, and in doubt, just run libido on any python source file (`libido file.py`).
+
 
 ## Options
 
