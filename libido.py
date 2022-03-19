@@ -49,13 +49,13 @@ def get_imports_from_fd(fd: open) -> list[tuple[str]]:
 
 def get_imports_from(fnames: list[str]) -> list[tuple[str]]:
     for fname in fnames:
-        # try:
+        try:
             with open(fname) as fd:
                 yield from get_imports_from_fd(fd)
-        # except Exception as err:
-            # print(f"File {fname} couldn't be parsed by RedBaron, because of a {type(err).__name__}. This file will be not be collected.")
-            # print(err)
-            # continue
+        except Exception as err:
+            print(f"File {fname} couldn't be parsed by RedBaron, because of a {type(err).__name__}. This file will be not be collected.")
+            print(err)
+            continue
 
 
 def is_stdlib(package_name: list[str], stdlib_modules: set[str]) -> bool:
