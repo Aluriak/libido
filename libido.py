@@ -32,22 +32,30 @@ def parse_cli() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def get_imports_from_fd(fd: open) -> list[tuple[str]]:
+    red = RedBaron(fd.read())
+    statements = red.find_all('import')
+    for s in statements:
+        for module in s.modules():
+            yield tuple(module.split('.'))
+    statements = red.find_all('from_import')
+    for s in statements:
+        module_base = tuple(sub.value for sub in s if hasattr(sub, 'value'))  # some objects do not have a value attr, for instance Ellipsis, which can be found in from_import, see https://github.com/PyCQA/redbaron/issues/213
+        assert all(isinstance(m, str) for m in module_base), tuple(map(type, module_base))
+        for module in s.modules():
+            assert isinstance(module, str), type(module)
+            assert '.' not in module, "that is unexpected. Dots are not allowed in from clause of from_import expression, right ?"
+            yield module_base + (module,)
+
 def get_imports_from(fnames: list[str]) -> list[tuple[str]]:
     for fname in fnames:
-        with open(fname) as fd:
-            red = RedBaron(fd.read())
-            statements = red.find_all('import')
-            for s in statements:
-                for module in s.modules():
-                    yield tuple(module.split('.'))
-            statements = red.find_all('from_import')
-            for s in statements:
-                module_base = tuple(sub.value for sub in s)
-                assert all(isinstance(m, str) for m in module_base), tuple(map(type, module_base))
-                for module in s.modules():
-                    assert isinstance(module, str), type(module)
-                    assert '.' not in module, "that is unexpected. Dots are not allowed in from clause of from_import expression, right ?"
-                    yield module_base + (module,)
+        # try:
+            with open(fname) as fd:
+                yield from get_imports_from_fd(fd)
+        # except Exception as err:
+            # print(f"File {fname} couldn't be parsed by RedBaron, because of a {type(err).__name__}. This file will be not be collected.")
+            # print(err)
+            # continue
 
 
 def is_stdlib(package_name: list[str], stdlib_modules: set[str]) -> bool:
