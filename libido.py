@@ -92,7 +92,7 @@ def get_imports_per_glob(globs: list[str], keep_subpackages: bool) -> dict[tuple
     return out
 
 
-if __name__ == '__main__':
+def main():
     args = parse_cli()
     target_pyver = args.python_version or DEFAULT_PYVER
 
@@ -138,3 +138,5 @@ if __name__ == '__main__':
         for dep, globs, isstd in results:
             print(f"{'.'.join(dep)} is needed by {len(globs)} of the {len(args.globs)} input globs.")
 
+if __name__ == '__main__':
+    main()
