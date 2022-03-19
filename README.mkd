@@ -1,0 +1,32 @@
+# Explore Python source code to find dependencies
+
+Use [pip show](https://stackoverflow.com/a/29751732/3077939) if you want to access the explicit dependencies of a python package.
+
+But, if you have a set of python files and want to know what they are importing, libido is a way to go.
+
+
+## Installation & usage
+
+    pip install libido
+    libido mod.py pak/*.py pak2/
+
+
+## Options
+
+There is some options. See `libido --help`.
+
+Most interestings may be
+`--python-version` to provide the python version of the code (because stdlib is not the same accross python versions),
+`--all-deps` to list all deps, including the one from stdlib (default is only the non-stdlib one),
+`--show-globs` to show for each dependencies which input glob needs it,
+or `--porcelain` for a parsable output.
+
+
+## How does it works ?
+
+Libido parses the source code with [redbaron](https://github.com/PyCQA/redbaron) find all import lines,
+and compare list of imported modules with historical records provided by [stdlibs](https://stdlibs.omnilib.dev/en/stable/) to decide which imported packages belong to the stdlib.
+
+Yes, these packages exists. That's so cool. Please send your thanks to the author of redbaron and stdlibs.
+
+
