@@ -1,7 +1,7 @@
 """
 """
 
-__version__ = '0.0.9'
+__version__ = '0.0.10.dev0'
 
 import os
 import re
