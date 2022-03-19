@@ -58,8 +58,6 @@ def get_imports_from(fnames: list[str], raise_err: bool = False) -> list[tuple[s
             print(f"File {fname} couldn't be parsed by RedBaron, because of a {type(err).__name__}. This file will be not be collected.")
             if raise_err:
                 raise err
-            else:
-                print(err)
             continue
 
 
