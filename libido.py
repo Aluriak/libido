@@ -20,7 +20,7 @@ def parse_cli() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('globs', nargs='+', type=str, help='modules and packages to edit')
     parser.add_argument('--python-version', '-v', type=str, help='the python version to consider', default=DEFAULT_PYVER)
-    parser.add_argument('--ignore', '-i', nargs='+', type=str, help="files matching this regex or starting with any of these strings won't be collected")
+    parser.add_argument('--ignore', '-i', nargs='+', type=str, help="files matching this regex or starting with any of these strings won't be collected", default=[])
     parser.add_argument('--collect-only', action='store_true', help='just collect files, do not run the checks')
     mutex = parser.add_mutually_exclusive_group(required=False)
     mutex.add_argument('--all-deps', '-a', action='store_true', help='include stdlib dependencies')
