@@ -1,0 +1,3 @@
+include libido.py
+include *.mkd
+recursive-include examples *.py
