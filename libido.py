@@ -32,7 +32,7 @@ def parse_cli() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_imports_from(fnames: [str]) -> list[tuple[str]]:
+def get_imports_from(fnames: list[str]) -> list[tuple[str]]:
     for fname in fnames:
         with open(fname) as fd:
             red = RedBaron(fd.read())
@@ -85,13 +85,13 @@ def get_imports_per_glob(globs: list[str], keep_subpackages: bool) -> dict[tuple
         files = tuple(get_files_from_glob(globname))
         for dep in get_imports_from(files):
             out.setdefault(dep, []).append(globname)
-    if not keep_subpackages:  # e.g. remove os.path if we have os
+    if keep_subpackages:  # just ensure unicity of all globs
+        out = {dep: sorted(list(set(globs))) for dep, globs in out.items()}
+    else:  # e.g. remove os.path if we have os
         niout = {}
         for dep, globs in out.items():
             niout.setdefault(dep[0], set()).update(set(globs))
         out = {(dep,): sorted(list(globs)) for dep, globs in niout.items()}
-    else:  # just ensure unicity of all globs
-        out = {dep: sorted(list(set(globs))) for dep, globs in out.items()}
     return out
 
 
